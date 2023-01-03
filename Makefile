@@ -1,8 +1,7 @@
 SHELL := /bin/bash
 BASEDIR = $(shell pwd)
 
-all: 
-	gotool
+all: gotool
 	@go build -v .
 proto:
 	protoc --proto_path=. --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. proto/*.proto

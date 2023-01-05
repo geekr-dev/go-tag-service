@@ -1,16 +1,20 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
-	"net"
 	"net/http"
+	"strings"
 
 	pb "github.com/geekr-dev/go-tag-service/proto"
 	"github.com/geekr-dev/go-tag-service/server"
 
-	"github.com/soheilhy/cmux"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -22,31 +26,21 @@ func init() {
 }
 
 func main() {
-	// 先监听 TCP 端口，gRPC 和 HTTP 都是基于 TCP 的
-	lis, err := startTcpServer(port)
-	if err != nil {
-		log.Fatalf("start tcp server failed: %v", err)
-	}
-
-	m := cmux.New(lis)
-	// gRPC 基于 application/grpc 请求头进行分流
-	grpcLis := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldPrefixSendSettings("content-type", "application/grpc"))
-	httpLis := m.Match(cmux.HTTP1Fast())
-
-	grpcServer := initGrpcServer()
-	httpServer := initHttpServer(port)
-	go grpcServer.Serve(grpcLis)
-	go httpServer.Serve(httpLis)
-
-	err = m.Serve()
+	err := startGrpcGateway(port)
 	if err != nil {
 		log.Fatalf("start server failed: %v", err)
 	}
 }
 
-// TCP 服务器
-func startTcpServer(port string) (net.Listener, error) {
-	return net.Listen("tcp", ":"+port)
+// 分流 grpc 和 http 请求
+func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Handler {
+	return h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
+			grpcServer.ServeHTTP(w, r)
+		} else {
+			otherHandler.ServeHTTP(w, r)
+		}
+	}), &http2.Server{})
 }
 
 // gRPC 服务器
@@ -54,18 +48,27 @@ func initGrpcServer() *grpc.Server {
 	s := grpc.NewServer()
 	pb.RegisterTagServiceServer(s, server.NewTagServer())
 	reflection.Register(s)
-
 	return s
 }
 
 // HTTP 服务器
-func initHttpServer(port string) *http.Server {
-	serverMux := http.NewServeMux()
-	serverMux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+func initHttpServeMux() *http.ServeMux {
+	serveMux := http.NewServeMux()
+	serveMux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`pong`))
 	})
-	return &http.Server{
-		Addr:    ":" + port,
-		Handler: serverMux,
-	}
+	return serveMux
+}
+
+// grpc-gateway 网关
+func startGrpcGateway(port string) error {
+	httpMux := initHttpServeMux()
+	endpoint := "0.0.0.0:" + port
+	gwmux := runtime.NewServeMux()
+	dopts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	_ = pb.RegisterTagServiceHandlerFromEndpoint(context.Background(), gwmux, endpoint, dopts)
+	httpMux.Handle("/", gwmux)
+
+	grpcServer := initGrpcServer()
+	return http.ListenAndServe(":"+port, grpcHandlerFunc(grpcServer, httpMux))
 }

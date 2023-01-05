@@ -7,9 +7,9 @@
 package ___proto
 
 import (
-	any "github.com/golang/protobuf/ptypes/any"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	anypb "google.golang.org/protobuf/types/known/anypb"
 	reflect "reflect"
 	sync "sync"
 )
@@ -89,9 +89,9 @@ type Error struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Code    int32    `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
-	Message string   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	Detail  *any.Any `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	Code    int32      `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Message string     `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Detail  *anypb.Any `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
 }
 
 func (x *Error) Reset() {
@@ -140,7 +140,7 @@ func (x *Error) GetMessage() string {
 	return ""
 }
 
-func (x *Error) GetDetail() *any.Any {
+func (x *Error) GetDetail() *anypb.Any {
 	if x != nil {
 		return x.Detail
 	}
@@ -183,9 +183,9 @@ func file_proto_common_proto_rawDescGZIP() []byte {
 
 var file_proto_common_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_proto_common_proto_goTypes = []interface{}{
-	(*Pager)(nil),   // 0: proto.Pager
-	(*Error)(nil),   // 1: proto.Error
-	(*any.Any)(nil), // 2: google.protobuf.Any
+	(*Pager)(nil),     // 0: proto.Pager
+	(*Error)(nil),     // 1: proto.Error
+	(*anypb.Any)(nil), // 2: google.protobuf.Any
 }
 var file_proto_common_proto_depIdxs = []int32{
 	2, // 0: proto.Error.detail:type_name -> google.protobuf.Any

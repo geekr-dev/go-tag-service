@@ -15,7 +15,7 @@ import (
 	"github.com/geekr-dev/go-tag-service/server"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"

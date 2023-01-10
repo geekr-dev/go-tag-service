@@ -20,6 +20,7 @@ require (
 require (
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/soheilhy/cmux v0.1.5
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect

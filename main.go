@@ -14,6 +14,7 @@ import (
 	"github.com/geekr-dev/go-tag-service/server"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -73,9 +74,31 @@ func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Ha
 	}), &http2.Server{})
 }
 
+// grpc 拦截器
+func HelloInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	log.Println("你好1")
+	resp, err := handler(ctx, req)
+	log.Println("再见1")
+	return resp, err
+}
+
+func WorldInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	log.Println("你好2")
+	resp, err := handler(ctx, req)
+	log.Println("再见2")
+	return resp, err
+}
+
 // gRPC 服务器
 func initGrpcServer() *grpc.Server {
-	s := grpc.NewServer()
+	// 注册拦截器
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			HelloInterceptor,
+			WorldInterceptor,
+		)),
+	}
+	s := grpc.NewServer(opts...)
 	pb.RegisterTagServiceServer(s, server.NewTagServer())
 	reflection.Register(s)
 	return s

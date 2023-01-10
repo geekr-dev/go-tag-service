@@ -6,11 +6,14 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 
+	"github.com/geekr-dev/go-tag-service/pkg/swagger"
 	pb "github.com/geekr-dev/go-tag-service/proto"
 	"github.com/geekr-dev/go-tag-service/server"
 
+	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -84,6 +87,26 @@ func initHttpServeMux() *http.ServeMux {
 	serveMux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`pong`))
 	})
+
+	// 支持 swagger ui
+	prefix := "/swagger-ui/"
+	fileServer := http.FileServer(&assetfs.AssetFS{
+		Asset:    swagger.Asset,
+		AssetDir: swagger.AssetDir,
+		Prefix:   "third_party/swagger-ui",
+	})
+	serveMux.Handle(prefix, http.StripPrefix(prefix, fileServer))
+	// 读取接口配置
+	serveMux.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "swagger.json") {
+			http.NotFound(w, r)
+			return
+		}
+		p := strings.TrimPrefix(r.URL.Path, "/swagger/")
+		p = path.Join("proto", p)
+		http.ServeFile(w, r, p)
+	})
+
 	return serveMux
 }
 

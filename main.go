@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/geekr-dev/go-tag-service/internal/middleware"
 	"github.com/geekr-dev/go-tag-service/pkg/swagger"
 	pb "github.com/geekr-dev/go-tag-service/proto"
 	"github.com/geekr-dev/go-tag-service/server"
@@ -94,8 +95,11 @@ func initGrpcServer() *grpc.Server {
 	// 注册拦截器
 	opts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			HelloInterceptor,
-			WorldInterceptor,
+			// HelloInterceptor,
+			// WorldInterceptor,
+			middleware.AccessLog,
+			middleware.ErrorLog,
+			middleware.Recovery,
 		)),
 	}
 	s := grpc.NewServer(opts...)

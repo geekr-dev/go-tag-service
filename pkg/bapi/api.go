@@ -75,7 +75,9 @@ func (api *API) GetTagList(ctx context.Context, name string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	if name == "灭霸" {
+		panic("毁灭吧")
+	}
 	body, err := api.httpGet(ctx, fmt.Sprintf("%s?token=%s&name=%s", "api/v1/tags", token, name))
 	if err != nil {
 		return nil, err

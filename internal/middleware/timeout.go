@@ -11,7 +11,7 @@ func defaultContextTimeout(ctx context.Context) (context.Context, context.Cancel
 	var cancel context.CancelFunc
 	// 未设置deadline时将其设置为60s
 	if _, ok := ctx.Deadline(); !ok {
-		defaultTimeout := 60 * time.Second
+		defaultTimeout := 30 * time.Second
 		ctx, cancel = context.WithTimeout(ctx, defaultTimeout)
 	}
 	return ctx, cancel

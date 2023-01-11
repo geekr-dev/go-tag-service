@@ -9,13 +9,15 @@ import (
 	"path"
 	"strings"
 
+	"github.com/geekr-dev/go-blog-app/pkg/tracer"
+	"github.com/geekr-dev/go-tag-service/global"
 	"github.com/geekr-dev/go-tag-service/internal/middleware"
 	"github.com/geekr-dev/go-tag-service/pkg/swagger"
 	pb "github.com/geekr-dev/go-tag-service/proto"
 	"github.com/geekr-dev/go-tag-service/server"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
-	"github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -55,6 +57,12 @@ func grpcGatewayError(ctx context.Context, _ *runtime.ServeMux, marshaler runtim
 func init() {
 	flag.StringVar(&port, "port", "9000", "启动端口号")
 	flag.Parse()
+
+	// 初始化链路追踪
+	err := setupTracer()
+	if err != nil {
+		log.Fatalf("init.setupTracer err: %v", err)
+	}
 }
 
 func main() {
@@ -100,6 +108,7 @@ func initGrpcServer() *grpc.Server {
 			middleware.AccessLog,
 			middleware.ErrorLog,
 			middleware.Recovery,
+			middleware.ServerTracing,
 		)),
 	}
 	s := grpc.NewServer(opts...)
@@ -148,4 +157,13 @@ func startGrpcGateway(port string) error {
 
 	grpcServer := initGrpcServer()
 	return http.ListenAndServe(":"+port, grpcHandlerFunc(grpcServer, httpMux))
+}
+
+func setupTracer() error {
+	jaegerTracer, _, err := tracer.NewJaegerTracer("go-tag-service", "localhost:6831")
+	if err != nil {
+		return err
+	}
+	global.Tracer = jaegerTracer
+	return nil
 }

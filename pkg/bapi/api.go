@@ -7,6 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
+
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 )
 
 const (
@@ -44,12 +48,42 @@ func (api *API) getAccessToken(ctx context.Context) (string, error) {
 }
 
 func (api *API) httpGet(ctx context.Context, path string) ([]byte, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/%s", api.URL, path))
+	// 实现 HTTP 请求追踪
+	url := fmt.Sprintf("%s/%s", api.URL, path)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	span, newCtx := opentracing.StartSpanFromContext(
+		ctx, "HTTP GET: "+api.URL,
+		opentracing.Tag{Key: string(ext.Component), Value: "HTTP"},
+	)
+	span.SetTag("url", url)
+	_ = opentracing.GlobalTracer().Inject(
+		span.Context(),
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(req.Header),
+	)
+	// 基于新的 ctx 发起 HTTP 请求
+	req = req.WithContext(newCtx)
+	client := http.Client{Timeout: time.Second * 30}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	/*resp, err := http.Get(fmt.Sprintf("%s/%s", api.URL, path))
+	if err != nil {
+		return nil, err
+	}*/
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	defer span.Finish()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
 	return body, nil
 }
 

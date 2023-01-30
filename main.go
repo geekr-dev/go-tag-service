@@ -8,10 +8,13 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/geekr-dev/go-blog-app/pkg/tracer"
 	"github.com/geekr-dev/go-tag-service/global"
 	"github.com/geekr-dev/go-tag-service/internal/middleware"
+	"github.com/geekr-dev/go-tag-service/pkg/registry"
+	"github.com/geekr-dev/go-tag-service/pkg/registry/etcd"
 	"github.com/geekr-dev/go-tag-service/pkg/swagger"
 	pb "github.com/geekr-dev/go-tag-service/proto"
 	"github.com/geekr-dev/go-tag-service/server"
@@ -148,19 +151,33 @@ func initHttpServeMux() *http.ServeMux {
 
 // grpc-gateway 网关
 func startGrpcGateway(port string) error {
+	// http
 	httpMux := initHttpServeMux()
 	endpoint := "0.0.0.0:" + port
 	gwmux := runtime.NewServeMux(runtime.WithErrorHandler(grpcGatewayError))
 	dopts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	_ = pb.RegisterTagServiceHandlerFromEndpoint(context.Background(), gwmux, endpoint, dopts)
 	httpMux.Handle("/", gwmux)
-
+	// grpc
 	grpcServer := initGrpcServer()
+
+	// 服务注册
+	etcdRegistry, err := etcd.New()
+	if err != nil {
+		return err
+	}
+	defer etcdRegistry.Close()
+	etcdRegistry.Register(
+		global.SERVICE_NAME,
+		&registry.Service{Name: global.SERVICE_NAME, Endpoint: ":" + port},
+		int64(time.Second*3),
+	)
+
 	return http.ListenAndServe(":"+port, grpcHandlerFunc(grpcServer, httpMux))
 }
 
 func setupTracer() error {
-	jaegerTracer, _, err := tracer.NewJaegerTracer("go-tag-service", "localhost:6831")
+	jaegerTracer, _, err := tracer.NewJaegerTracer(global.SERVICE_NAME, "localhost:6831")
 	if err != nil {
 		return err
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/geekr-dev/go-blog-app/pkg/tracer"
 	"github.com/geekr-dev/go-tag-service/global"
 	"github.com/geekr-dev/go-tag-service/internal/middleware"
+	"github.com/geekr-dev/go-tag-service/pkg/registry/etcd"
 	pb "github.com/geekr-dev/go-tag-service/proto"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -73,7 +74,20 @@ func main() {
 			),
 		),
 	}
-	conn, err := grpc.DialContext(ctx, "localhost:9000", opts...)
+	// 服务发现
+	etcdRegistry, err := etcd.New()
+	if err != nil {
+		log.Fatalf("create etcd client failed: %v", err)
+	}
+	// defer etcdRegistry.Close()
+	endpoint, err := etcdRegistry.GetEndpoint(global.SERVICE_NAME)
+	if err != nil {
+		log.Fatalf("get endpoint from registry failed: %v", err)
+	}
+	if endpoint == "" {
+		log.Fatalln("no available endpoints found")
+	}
+	conn, err := grpc.DialContext(ctx, endpoint, opts...)
 	if err != nil {
 		log.Fatalf("err: %v", err)
 	}
